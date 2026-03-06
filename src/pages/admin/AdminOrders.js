@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import orderService from '../../services/orderService';
-import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, Building2, User, AlertTriangle, PackageCheck } from 'lucide-react';
 
 const statusIcon = {
   PENDING_EVALUATION: <Clock className="h-4 w-4 text-amber-500" />,
@@ -21,7 +21,7 @@ const AdminOrders = () => {
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(null);
   const [noteInputs, setNoteInputs] = useState({});
-  const [filter, setFilter] = useState('PENDING_EVALUATION');
+  const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
     fetchOrders();
@@ -117,15 +117,93 @@ const AdminOrders = () => {
                   <p className="text-lg font-bold text-espresso">${Number(order.totalAmount).toFixed(2)}</p>
                 </div>
 
-                {/* Items */}
-                <div className="mt-4 space-y-1.5">
-                  {order.items && order.items.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{item.productName} × {item.quantity}</span>
-                      <span className="font-medium text-espresso">${Number(item.subtotal).toFixed(2)}</span>
+                {/* Items with inventory comparison */}
+                <div className="mt-4">
+                  <div className="mb-2 grid grid-cols-12 gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="col-span-4">Product</span>
+                    <span className="col-span-2 text-center">Ordered</span>
+                    <span className="col-span-2 text-center">In Stock</span>
+                    <span className="col-span-2 text-center">Status</span>
+                    <span className="col-span-2 text-right">Subtotal</span>
+                  </div>
+                  {order.items && order.items.map((item, idx) => {
+                    const hasStock = item.availableStock != null;
+                    const sufficient = hasStock && item.availableStock >= item.quantity;
+                    const low = hasStock && !sufficient;
+                    return (
+                      <div key={idx} className={`grid grid-cols-12 items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${low ? 'bg-red-50' : ''}`}>
+                        <span className="col-span-4 text-muted-foreground">{item.productName}</span>
+                        <span className="col-span-2 text-center font-medium text-espresso">{item.quantity}</span>
+                        <span className={`col-span-2 text-center font-medium ${low ? 'text-red-600' : 'text-espresso'}`}>
+                          {hasStock ? item.availableStock : '—'}
+                        </span>
+                        <span className="col-span-2 flex justify-center">
+                          {hasStock ? (
+                            sufficient ? (
+                              <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                                <PackageCheck className="h-3.5 w-3.5" /> Sufficient
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs font-medium text-red-600">
+                                <AlertTriangle className="h-3.5 w-3.5" /> Insufficient
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </span>
+                        <span className="col-span-2 text-right font-medium text-espresso">${Number(item.subtotal).toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                  {/* Overall stock warning */}
+                  {order.status === 'PENDING_EVALUATION' && order.items?.some(item => item.availableStock != null && item.availableStock < item.quantity) && (
+                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 border border-red-200">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span className="font-medium">Warning: Some items have insufficient stock to fulfill this order.</span>
                     </div>
-                  ))}
+                  )}
                 </div>
+
+                {/* Billing Details (PO Info) */}
+                {order.billingType && (
+                  <div className="mt-4 rounded-lg bg-cream/60 p-4 border border-sand/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      {order.billingType === 'COMPANY' ? (
+                        <Building2 className="h-4 w-4 text-primary" />
+                      ) : (
+                        <User className="h-4 w-4 text-primary" />
+                      )}
+                      <span className="text-sm font-semibold text-espresso">
+                        {order.billingType === 'COMPANY' ? 'Company' : 'Personal'} Billing
+                      </span>
+                    </div>
+                    <div className="grid gap-1.5 text-sm">
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[100px]">
+                          {order.billingType === 'COMPANY' ? 'Registered Name:' : 'Name:'}
+                        </span>
+                        <span className="font-medium text-espresso">{order.billingName}</span>
+                      </div>
+                      {order.billingType === 'COMPANY' && order.billingTin && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground min-w-[100px]">TIN:</span>
+                          <span className="font-medium text-espresso">{order.billingTin}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[100px]">
+                          {order.billingType === 'COMPANY' ? 'Business Addr:' : 'Billing Addr:'}
+                        </span>
+                        <span className="font-medium text-espresso">{order.billingAddress}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[100px]">Terms:</span>
+                        <span className="font-medium text-espresso">{order.billingTerms}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Evaluate Controls (only for pending) */}
                 {order.status === 'PENDING_EVALUATION' && (

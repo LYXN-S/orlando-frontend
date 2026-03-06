@@ -1,12 +1,11 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
 import Footer from '../components/Footer';
 import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
-import orderService from '../services/orderService';
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Lock, Loader2 } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Lock } from 'lucide-react';
 
 const CartItem = ({ item, onUpdateQuantity, onRemove }) => {
   return (
@@ -77,28 +76,17 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => {
 };
 
 const Cart = () => {
-  const { cartItems, updateQuantity, removeFromCart, cartTotal, cartCount, clearCart } =
+  const { cartItems, updateQuantity, removeFromCart, cartTotal, cartCount } =
     useContext(CartContext);
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [checkingOut, setCheckingOut] = useState(false);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!user) {
       navigate('/login?redirect=/cart');
       return;
     }
-    setCheckingOut(true);
-    try {
-      await orderService.submitOrder();
-      clearCart();
-      navigate('/orders');
-    } catch (err) {
-      console.error('Checkout failed:', err);
-      alert(err.response?.data?.message || 'Failed to place order. Please try again.');
-    } finally {
-      setCheckingOut(false);
-    }
+    navigate('/checkout');
   };
 
   if (cartItems.length === 0) {
@@ -195,13 +183,10 @@ const Cart = () => {
 
               <Button
                 onClick={handleCheckout}
-                disabled={checkingOut}
                 size="lg"
-                className="mt-6 w-full rounded-full bg-primary font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
+                className="mt-6 w-full rounded-full bg-primary font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-xl"
               >
-                {checkingOut ? (
-                  <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Placing Order…</span>
-                ) : 'Checkout'}
+                Proceed to Checkout
               </Button>
 
               {!user && (

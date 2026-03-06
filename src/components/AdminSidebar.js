@@ -40,8 +40,9 @@ const AdminSidebar = ({ open, onClose }) => {
     <div className="flex h-full flex-col bg-white border-r border-sand">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-sand px-4">
-        <Link to="/admin" className="font-serif text-xl font-bold tracking-wide text-primary">
-          ORLANDO
+        <Link to="/admin" className="flex items-center gap-2">
+          <img src="/orlando_logo.jpg" alt="Orlando" className="h-9 w-auto" />
+          <span className="font-serif text-xl font-bold tracking-wide text-primary">ORLANDO</span>
         </Link>
         <button
           onClick={onClose}

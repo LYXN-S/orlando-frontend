@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
@@ -107,6 +108,13 @@ const ProductList = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Products — Orlando Prestige Italian Imports</title>
+        <meta name="description" content="Browse our curated selection of premium Italian products — olive oils, artisan pastas, wines, truffles, and more. Sourced directly from Italian farms." />
+        <meta property="og:title" content="Products — Orlando Prestige" />
+        <meta property="og:description" content="Premium Italian products sourced directly from Italian farms and producers." />
+        <link rel="canonical" href="/products" />
+      </Helmet>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
         <div className="mb-8">
           <h1 className="font-serif text-3xl font-bold text-espresso md:text-4xl">Our Products</h1>

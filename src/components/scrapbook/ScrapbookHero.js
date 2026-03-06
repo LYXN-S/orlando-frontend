@@ -73,6 +73,9 @@ const ScrapbookHero = () => {
           </span>
         </div>
 
+        {/* Logo */}
+        <img src="/orlando_logo.jpg" alt="Orlando Prestige" className="mb-6 h-32 w-auto rounded-xl shadow-md md:h-40 lg:h-48" />
+
         {/* Brand name */}
         <h1 className="font-serif text-5xl font-bold leading-tight text-espresso md:text-7xl lg:text-8xl">
           Orlando

@@ -35,9 +35,8 @@ const productService = {
   uploadImage: async (productId, file) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post(`${API_BASE}/${productId}/images`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // Do NOT set Content-Type manually — the browser sets it with the correct boundary
+    const response = await api.post(`${API_BASE}/${productId}/images`, formData);
     return response.data;
   },
 

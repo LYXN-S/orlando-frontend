@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import Footer from '../components/Footer';
 import orderService from '../services/orderService';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, Building2, User } from 'lucide-react';
 
 const statusColors = {
   PENDING_EVALUATION: 'muted',
@@ -83,6 +83,15 @@ const Orders = () => {
                     </div>
                   ))}
                 </div>
+                {order.billingType && (
+                  <div className="mt-3 rounded-lg bg-cream/60 p-3 border border-sand/50">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-espresso">
+                      {order.billingType === 'COMPANY' ? <Building2 className="h-3.5 w-3.5 text-primary" /> : <User className="h-3.5 w-3.5 text-primary" />}
+                      {order.billingType === 'COMPANY' ? 'Company' : 'Personal'} · {order.billingName}
+                      {order.billingTin ? ` · TIN: ${order.billingTin}` : ''}
+                    </div>
+                  </div>
+                )}
                 {order.evaluationNote && (
                   <p className="mt-3 text-sm italic text-muted-foreground">Note: {order.evaluationNote}</p>
                 )}

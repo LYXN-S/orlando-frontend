@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import Footer from '../components/Footer';
@@ -76,6 +77,13 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{product.name} — Orlando Prestige</title>
+        <meta name="description" content={product.description || `Buy ${product.name} from Orlando Prestige. Premium Italian imports.`} />
+        <meta property="og:title" content={`${product.name} — Orlando Prestige`} />
+        <meta property="og:description" content={product.description || `Premium Italian product: ${product.name}`} />
+        <link rel="canonical" href={`/products/${product.id}`} />
+      </Helmet>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
         {/* Breadcrumb */}
         <nav className="mb-8 flex items-center gap-2 text-sm text-muted-foreground">

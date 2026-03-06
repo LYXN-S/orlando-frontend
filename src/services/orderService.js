@@ -1,8 +1,19 @@
 import api from './api';
 
 const orderService = {
-  submitOrder: async () => {
-    const response = await api.post('/orders');
+  submitOrder: async (items, billingDetails) => {
+    const response = await api.post('/orders', {
+      items: items.map((item) => ({
+        productId: item.id,
+        quantity: item.quantity,
+      })),
+      billingType: billingDetails.billingType,
+      billingName: billingDetails.billingName,
+      billingTin: billingDetails.billingTin || null,
+      billingAddress: billingDetails.billingAddress,
+      billingTerms: billingDetails.billingTerms,
+      billingProfileId: billingDetails.billingProfileId || null,
+    });
     return response.data;
   },
 

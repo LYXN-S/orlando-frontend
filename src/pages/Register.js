@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Alert, AlertDescription } from '../components/ui/alert';
-import { AlertCircle, User, Mail, Lock } from 'lucide-react';
+import { AlertCircle, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const getPasswordStrength = (password) => {
   let score = 0;
@@ -30,6 +31,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const passwordStrength = getPasswordStrength(form.password);
@@ -94,6 +96,11 @@ const Register = () => {
 
   return (
     <div className="flex min-h-[calc(100vh-64px)]">
+      <Helmet>
+        <title>Create Account — Orlando Prestige</title>
+        <meta name="description" content="Register for an Orlando Prestige account to discover and order authentic Italian products." />
+        <link rel="canonical" href="/register" />
+      </Helmet>
       {/* Left Panel — Form */}
       <div className="relative z-10 flex w-full items-center justify-center bg-white px-6 py-12 lg:w-[45%] lg:min-w-[480px]">
         {/* Curved edge overlay */}
@@ -196,13 +203,21 @@ const Register = () => {
                 <Input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Min 8 characters"
                   value={form.password}
                   onChange={handleChange}
-                  className="pl-10 border-sand focus-visible:ring-primary"
+                  className="pl-10 pr-10 border-sand focus-visible:ring-primary"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-espresso transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
               {fieldErrors.password && (
                 <p className="text-xs text-destructive">{fieldErrors.password}</p>

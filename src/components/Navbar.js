@@ -30,23 +30,28 @@ const Navbar = () => {
 
   const closeMobile = () => setMobileOpen(false);
 
+  const isLoggedInCustomer = user && !admin;
+
   return (
     <>
       <nav className="sticky top-0 z-50 border-b border-sand bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
           {/* Logo */}
           <Link
-            to="/"
-            className="font-serif text-xl font-bold tracking-wide text-primary"
+            to={isLoggedInCustomer ? '/products' : '/'}
+            className="flex items-center gap-2"
           >
-            ORLANDO
+            <img src="/orlando_logo.jpg" alt="Orlando" className="h-10 w-auto" />
+            <span className="font-serif text-xl font-bold tracking-wide text-primary">ORLANDO</span>
           </Link>
 
           {/* Desktop Nav Links */}
           <div className="hidden items-center gap-1 md:flex">
-            <Link to="/" className={navLinkClass('/')}>
-              Home
-            </Link>
+            {!isLoggedInCustomer && (
+              <Link to="/" className={navLinkClass('/')}>
+                Home
+              </Link>
+            )}
             <Link to="/products" className={navLinkClass('/products')}>
               Products
             </Link>
@@ -152,14 +157,16 @@ const Navbar = () => {
               </button>
             </div>
             <div className="flex flex-col p-4">
-              <Link
-                to="/"
-                onClick={closeMobile}
-                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-espresso transition-colors hover:bg-cream"
-              >
-                <Home className="h-4 w-4 text-primary" />
-                Home
-              </Link>
+              {!isLoggedInCustomer && (
+                <Link
+                  to="/"
+                  onClick={closeMobile}
+                  className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-espresso transition-colors hover:bg-cream"
+                >
+                  <Home className="h-4 w-4 text-primary" />
+                  Home
+                </Link>
+              )}
               <Link
                 to="/products"
                 onClick={closeMobile}

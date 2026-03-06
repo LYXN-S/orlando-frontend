@@ -8,7 +8,10 @@ const Footer = () => {
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div>
-            <h3 className="font-serif text-2xl font-bold tracking-wide">ORLANDO</h3>
+            <div className="flex items-center gap-3">
+              <img src="/orlando_logo.jpg" alt="Orlando" className="h-12 w-auto rounded" />
+              <h3 className="font-serif text-2xl font-bold tracking-wide">ORLANDO</h3>
+            </div>
             <p className="mt-3 text-sm leading-relaxed text-white/70">
               Authentic Italian flavors, delivered to your door. Premium Mediterranean products sourced directly from Italian farms and producers.
             </p>
@@ -83,7 +86,9 @@ const Footer = () => {
               <li className="pt-3">
                 <div className="flex gap-3">
                   <a
-                    href="#"
+                    href="https://facebook.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
                     aria-label="Facebook"
                   >
@@ -92,7 +97,9 @@ const Footer = () => {
                     </svg>
                   </a>
                   <a
-                    href="#"
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
                     aria-label="Instagram"
                   >
@@ -101,7 +108,9 @@ const Footer = () => {
                     </svg>
                   </a>
                   <a
-                    href="#"
+                    href="https://twitter.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
                     aria-label="Twitter"
                   >
