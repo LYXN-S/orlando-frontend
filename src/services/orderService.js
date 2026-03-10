@@ -19,7 +19,10 @@ const orderService = {
 
   getMyOrders: async () => {
     const response = await api.get('/orders/my');
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   getOrderById: async (id) => {
@@ -30,7 +33,10 @@ const orderService = {
   // Staff only
   getPendingOrders: async () => {
     const response = await api.get('/orders');
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   // Staff only

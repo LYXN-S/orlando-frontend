@@ -3,7 +3,10 @@ import api from './api';
 const billingService = {
   getMyProfiles: async () => {
     const response = await api.get('/billing-profiles/my');
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   createProfile: async (data) => {

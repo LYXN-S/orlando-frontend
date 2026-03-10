@@ -3,7 +3,10 @@ import api from './api';
 const notificationService = {
   getNotifications: async () => {
     const response = await api.get('/notifications');
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   getUnreadCount: async () => {

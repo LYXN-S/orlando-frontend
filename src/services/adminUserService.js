@@ -4,7 +4,10 @@ const adminUserService = {
   // ====== Staff ======
   getStaff: async () => {
     const res = await api.get('/admin/users/staff');
-    return res.data;
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   getStaffMember: async (id) => {
@@ -29,7 +32,10 @@ const adminUserService = {
   // ====== Customers ======
   getCustomers: async () => {
     const res = await api.get('/admin/users/customers');
-    return res.data;
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   getCustomer: async (id) => {
