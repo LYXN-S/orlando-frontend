@@ -71,7 +71,7 @@ const FeaturedCollection = () => {
     const fetchProducts = async () => {
       try {
         const data = await productService.getAll();
-        setProducts(data.slice(0, 6));
+        setProducts(Array.isArray(data) ? data.slice(0, 6) : []);
       } catch (err) {
         console.error('Failed to load featured products:', err);
       } finally {

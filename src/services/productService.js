@@ -5,7 +5,11 @@ const API_BASE = '/catalog/products';
 const productService = {
   getAll: async () => {
     const response = await api.get(API_BASE);
-    return response.data;
+    const data = response.data;
+    // Handle Spring Boot paginated responses (Page<T>) which wrap the array in { content: [...] }
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
   },
 
   getById: async (id) => {
