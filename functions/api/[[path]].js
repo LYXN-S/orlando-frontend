@@ -5,16 +5,14 @@ export async function onRequest(context) {
   // Construct the exact URL to your Droplet
   const targetUrl = `http://206.189.87.46${url.pathname}${url.search}`;
 
-  // Clone the headers so we can modify them
+  // Clone headers but explicitly DELETE the Host header so Cloudflare doesn't block it
   const headers = new Headers(request.headers);
-  
-  // TRICK: Tell Nginx we are talking directly to the Droplet, not the Cloudflare domain
-  headers.set("Host", "206.189.87.46");
+  headers.delete("Host");
 
-  // Determine if there is a body to send (GET/HEAD requests cannot have bodies)
+  // Determine if there is a body to send
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
 
-  // Forward the request to the backend
+  // Forward the request to the backend safely
   const response = await fetch(targetUrl, {
     method: request.method,
     headers: headers,
