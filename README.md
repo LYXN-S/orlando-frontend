@@ -1,3 +1,7 @@
+# Orlando App Frontend
+
+This project is the frontend for the Orlando App, built with React and Tailwind CSS. It provides a modern user interface for managing products, orders, user authentication, and admin features. The app includes a scrapbook section, admin dashboard, and various UI components for a seamless user experience.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
