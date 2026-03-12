@@ -6,6 +6,7 @@ import {
   Package,
   ClipboardList,
   Warehouse,
+  ArrowRightLeft,
   Users,
   UserCircle,
   LogOut,
@@ -16,7 +17,8 @@ const menuItems = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, permission: 'VIEW_DASHBOARD', exact: true },
   { label: 'Products', path: '/admin/products', icon: Package, permission: 'MANAGE_PRODUCTS' },
   { label: 'Orders', path: '/admin/orders', icon: ClipboardList, permission: 'MANAGE_ORDERS' },
-  { label: 'Inventory', path: '/admin/inventory', icon: Warehouse, permission: 'MANAGE_INVENTORY' },
+  { label: 'Inventory', path: '/admin/inventory', icon: Warehouse, permission: 'MANAGE_INVENTORY', exact: true },
+  { label: 'Movements', path: '/admin/inventory/movements', icon: ArrowRightLeft, permission: 'MANAGE_INVENTORY' },
   { label: 'Users', path: '/admin/users', icon: Users, superAdminOnly: true },
   { label: 'Profile', path: '/admin/profile', icon: UserCircle },
 ];

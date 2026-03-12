@@ -21,6 +21,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminProductForm from './pages/admin/AdminProductForm';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminInventory from './pages/admin/AdminInventory';
+import AdminMovements from './pages/admin/AdminMovements';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminStaffForm from './pages/admin/AdminStaffForm';
 import AdminProfile from './pages/admin/AdminProfile';
@@ -61,6 +62,7 @@ function App() {
                 <Route path="products/:id/edit" element={<AdminProductForm />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="inventory" element={<AdminInventory />} />
+                <Route path="inventory/movements" element={<AdminMovements />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="users/staff/new" element={<AdminStaffForm />} />
                 <Route path="profile" element={<AdminProfile />} />
