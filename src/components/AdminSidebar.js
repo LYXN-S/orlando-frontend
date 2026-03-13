@@ -10,7 +10,6 @@ import {
   Users,
   UserCircle,
   BarChart3,
-  FileUp,
   LogOut,
   X,
 } from 'lucide-react';
@@ -22,7 +21,6 @@ const menuItems = [
   { label: 'Inventory', path: '/admin/inventory', icon: Warehouse, permission: 'MANAGE_INVENTORY', exact: true },
   { label: 'Movements', path: '/admin/inventory/movements', icon: ArrowRightLeft, permission: 'MANAGE_INVENTORY' },
   { label: 'Warehouse Sales', path: '/admin/sales/warehouses', icon: BarChart3, permission: 'VIEW_DASHBOARD' },
-  { label: 'Create PO', path: '/admin/po/create', icon: FileUp, permission: 'MANAGE_ORDERS' },
   { label: 'Users', path: '/admin/users', icon: Users, superAdminOnly: true },
   { label: 'Profile', path: '/admin/profile', icon: UserCircle },
 ];

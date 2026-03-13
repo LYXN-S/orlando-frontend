@@ -39,9 +39,35 @@ const procurementService = {
     return response.data;
   },
 
+  uploadAndExtractAsync: async (file, poId = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (poId) formData.append('poId', String(poId));
+    const response = await api.post('/procurement/pos/upload-extract-async', formData);
+    return response.data;
+  },
+
+  getExtractionAsyncStatus: async (requestId) => {
+    const response = await api.get(`/procurement/pos/upload-extract-async/${requestId}`);
+    return response.data;
+  },
+
   getAttachmentUrl: (attachmentId) => {
     const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
     return `${baseURL}/procurement/pos/attachments/${attachmentId}`;
+  },
+
+  getAttachmentPreview: async (attachmentId) => {
+    const response = await api.get(`/procurement/pos/attachments/${attachmentId}`, {
+      responseType: 'blob',
+    });
+    const blob = response.data;
+    const url = URL.createObjectURL(blob);
+    return {
+      url,
+      mimeType: blob.type || response.headers['content-type'] || 'application/octet-stream',
+      revoke: () => URL.revokeObjectURL(url),
+    };
   },
 };
 

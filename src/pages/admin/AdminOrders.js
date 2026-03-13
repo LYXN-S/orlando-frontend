@@ -3,6 +3,8 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import orderService from '../../services/orderService';
 import inventoryService from '../../services/inventoryService';
+import procurementService from '../../services/procurementService';
+import AdminCreatePO from './AdminCreatePO';
 import { Loader2, CheckCircle, XCircle, Clock, FileCheck2 } from 'lucide-react';
 
 const statusColors = {
@@ -25,6 +27,8 @@ const emptyAllocation = (item, defaultWarehouse = 'OFFICE') => ({
 });
 
 const AdminOrders = () => {
+  const [moduleTab, setModuleTab] = useState('PO_REVIEWS');
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [poReviews, setPoReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
@@ -35,6 +39,12 @@ const AdminOrders = () => {
   const [note, setNote] = useState('');
   const [savingAllocations, setSavingAllocations] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [systemPos, setSystemPos] = useState([]);
+  const [loadingSystemPos, setLoadingSystemPos] = useState(false);
+  const [systemPoFilter, setSystemPoFilter] = useState('ALL');
+  const [activeSystemPoId, setActiveSystemPoId] = useState(null);
+  const [activeSystemPo, setActiveSystemPo] = useState(null);
+  const [systemPoPreview, setSystemPoPreview] = useState(null);
 
   useEffect(() => {
     loadPoReviews();
@@ -43,10 +53,22 @@ const AdminOrders = () => {
   }, [filter]);
 
   useEffect(() => {
+    loadSystemPos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [systemPoFilter]);
+
+  useEffect(() => {
     if (activePoId) {
       loadPoDetail(activePoId);
     }
   }, [activePoId]);
+
+  useEffect(() => {
+    if (activeSystemPoId) {
+      loadSystemPoDetail(activeSystemPoId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSystemPoId]);
 
   const loadPoReviews = async () => {
     try {
@@ -64,6 +86,50 @@ const AdminOrders = () => {
       console.error('Failed to load PO reviews:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSystemPos = async () => {
+    try {
+      setLoadingSystemPos(true);
+      const data = await procurementService.list(systemPoFilter);
+      setSystemPos(data || []);
+      if (data?.length && !activeSystemPoId) {
+        setActiveSystemPoId(data[0].id);
+      }
+      if (!data?.length) {
+        setActiveSystemPoId(null);
+        setActiveSystemPo(null);
+      }
+    } catch (err) {
+      console.error('Failed to load procurement POs:', err);
+    } finally {
+      setLoadingSystemPos(false);
+    }
+  };
+
+  const loadSystemPoDetail = async (id) => {
+    try {
+      const detail = await procurementService.getById(id);
+      setActiveSystemPo(detail);
+      setSystemPoPreview(null);
+      if (detail?.attachments?.length) {
+        openSystemPoAttachment(detail.attachments[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load procurement PO detail:', err);
+    }
+  };
+
+  const openSystemPoAttachment = async (attachmentId) => {
+    try {
+      if (systemPoPreview?.revoke) {
+        systemPoPreview.revoke();
+      }
+      const preview = await procurementService.getAttachmentPreview(attachmentId);
+      setSystemPoPreview(preview);
+    } catch (err) {
+      console.error('Failed to preview attachment:', err);
     }
   };
 
@@ -189,41 +255,94 @@ const AdminOrders = () => {
     <div className="min-h-screen bg-background">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-8 md:px-8 md:py-12 lg:grid-cols-5">
         <section className="rounded-xl border border-sand bg-white p-4 shadow-sm lg:col-span-2">
-          <h1 className="font-serif text-2xl font-bold text-espresso">PO Reviews</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Scrutinize customer orders before approval</p>
+          <h1 className="font-serif text-2xl font-bold text-espresso">Order & PO Module</h1>
+          <p className="mt-1 text-sm text-muted-foreground">PO reviews, procurement PO list, and create PO in one place</p>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`rounded-full px-3 py-1 text-xs font-medium ${filter === status ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
-              >
-                {status.replace('_', ' ')}
-              </button>
-            ))}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setModuleTab('PO_REVIEWS')}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${moduleTab === 'PO_REVIEWS' ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
+            >
+              PO Reviews
+            </button>
+            <button
+              onClick={() => setModuleTab('PROCUREMENT_POS')}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${moduleTab === 'PROCUREMENT_POS' ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
+            >
+              Procurement POs
+            </button>
+            <Button size="sm" onClick={() => setCreateModalOpen(true)} className="ml-auto bg-primary text-white hover:bg-primary-hover">
+              Create PO
+            </Button>
           </div>
 
-          <div className="mt-4 space-y-2">
-            {poReviews.length === 0 && <p className="text-sm text-muted-foreground">No PO reviews found.</p>}
-            {poReviews.map((po) => (
-              <button
-                key={po.id}
-                onClick={() => setActivePoId(po.id)}
-                className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${activePoId === po.id ? 'border-primary bg-primary/5' : 'border-sand hover:bg-cream/40'}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-espresso">PO #{po.id}</span>
-                  <Badge variant={statusColors[po.status] || 'muted'}>{po.status.replace('_', ' ')}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">Order #{po.orderId} · Customer {po.customerId}</p>
-              </button>
-            ))}
-          </div>
+          {moduleTab === 'PO_REVIEWS' && (
+            <>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilter(status)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${filter === status ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
+                  >
+                    {status.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {poReviews.length === 0 && <p className="text-sm text-muted-foreground">No PO reviews found.</p>}
+                {poReviews.map((po) => (
+                  <button
+                    key={po.id}
+                    onClick={() => setActivePoId(po.id)}
+                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${activePoId === po.id ? 'border-primary bg-primary/5' : 'border-sand hover:bg-cream/40'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-espresso">PO Review #{po.id}</span>
+                      <Badge variant={statusColors[po.status] || 'muted'}>{po.status.replace('_', ' ')}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">Order #{po.orderId} · Customer {po.customerId}</p>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {moduleTab === 'PROCUREMENT_POS' && (
+            <div className="mt-4 space-y-2">
+              <div className="mb-2 flex flex-wrap gap-2">
+                {['ALL', 'DRAFT', 'CONFIRMED'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setSystemPoFilter(status)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${systemPoFilter === status ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+              {loadingSystemPos && <p className="text-sm text-muted-foreground">Loading procurement POs...</p>}
+              {!loadingSystemPos && systemPos.length === 0 && <p className="text-sm text-muted-foreground">No procurement POs found.</p>}
+              {systemPos.map((po) => (
+                <button
+                  key={po.id}
+                  onClick={() => setActiveSystemPoId(po.id)}
+                  className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${activeSystemPoId === po.id ? 'border-primary bg-primary/5' : 'border-sand hover:bg-cream/40'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-espresso">Procurement PO #{po.id}</span>
+                    <Badge variant={po.status === 'CONFIRMED' ? 'success' : 'muted'}>{po.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{po.customerName || 'Unknown Customer'} · {po.poNumber || 'No Number'}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl border border-sand bg-white p-5 shadow-sm lg:col-span-3">
-          {!activePo ? (
+          {moduleTab === 'PO_REVIEWS' && (!activePo ? (
             <p className="text-sm text-muted-foreground">Select a PO review to start evaluation.</p>
           ) : (
             <>
@@ -315,9 +434,83 @@ const AdminOrders = () => {
                 </div>
               )}
             </>
-          )}
+          ))}
+
+          {moduleTab === 'PROCUREMENT_POS' && (!activeSystemPo ? (
+            <p className="text-sm text-muted-foreground">Select a procurement PO to view details and uploaded source.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-xl font-semibold text-espresso">Procurement PO #{activeSystemPo.id}</h2>
+                <Badge variant={activeSystemPo.status === 'CONFIRMED' ? 'success' : 'muted'}>{activeSystemPo.status}</Badge>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+                <div><span className="font-semibold">Customer:</span> {activeSystemPo.customerName || '-'}</div>
+                <div><span className="font-semibold">PO Number:</span> {activeSystemPo.poNumber || '-'}</div>
+                <div><span className="font-semibold">PO Date:</span> {activeSystemPo.poDate || '-'}</div>
+                <div><span className="font-semibold">Delivery Date:</span> {activeSystemPo.deliveryDate || '-'}</div>
+                <div><span className="font-semibold">Total:</span> {activeSystemPo.total || 0}</div>
+              </div>
+
+              {!!activeSystemPo.attachments?.length && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-espresso">Uploaded Documents</p>
+                  <div className="flex flex-wrap gap-2">
+                    {activeSystemPo.attachments.map((a) => (
+                      <Button key={a.id} size="sm" variant="outline" onClick={() => openSystemPoAttachment(a.id)}>
+                        <FileCheck2 className="mr-2 h-4 w-4" /> {a.fileName}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border border-sand p-3">
+                  <p className="mb-2 text-sm font-semibold text-espresso">Uploaded PO Preview</p>
+                  {systemPoPreview?.url ? (
+                    <iframe title="Uploaded PO" src={systemPoPreview.url} className="h-[540px] w-full rounded border border-sand" />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select an uploaded document to preview.</p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-sand p-3">
+                  <p className="mb-2 text-sm font-semibold text-espresso">Auto-populated Items</p>
+                  <div className="max-h-[540px] space-y-2 overflow-y-auto">
+                    {(activeSystemPo.items || []).map((item, idx) => (
+                      <div key={`${idx}-${item.lineNumber || idx}`} className="rounded border border-sand p-2 text-xs">
+                        <p className="font-medium text-espresso">{item.description || `Line ${idx + 1}`}</p>
+                        <p>Qty: {item.quantity || 0}</p>
+                        <p>Unit Price: {item.unitPrice || 0}</p>
+                        <p>Line Total: {item.lineTotal || 0}</p>
+                      </div>
+                    ))}
+                    {(!activeSystemPo.items || activeSystemPo.items.length === 0) && (
+                      <p className="text-sm text-muted-foreground">No extracted items.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </section>
       </div>
+
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[95vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-white p-5 shadow-2xl">
+            <AdminCreatePO
+              embedded
+              onClose={() => setCreateModalOpen(false)}
+              onSaved={() => {
+                loadSystemPos();
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
