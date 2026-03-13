@@ -1,16 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import inventoryService from '../../services/inventoryService';
-import { Loader2, AlertTriangle, Package, ArrowUpDown, Search, ArrowRightLeft } from 'lucide-react';
+import { Loader2, AlertTriangle, Package, ArrowUpDown, Search, ArrowRightLeft, Plus } from 'lucide-react';
+
+const StockInModal = ({ open, onClose, warehouses, item, onSubmit, saving }) => {
+  const [warehouseCode, setWarehouseCode] = useState('OFFICE');
+  const [quantity, setQuantity] = useState('');
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setWarehouseCode('OFFICE');
+    setQuantity('');
+    setNote('');
+  }, [open, item?.id]);
+
+  if (!open || !item) return null;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const qty = parseInt(quantity, 10);
+    if (!warehouseCode || !qty || qty <= 0) {
+      alert('Warehouse and a positive quantity are required.');
+      return;
+    }
+    await onSubmit({ warehouseCode, quantity: qty, note });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-sand bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-serif text-2xl font-semibold text-espresso">Add Stock</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{item.productName} ({item.sku})</p>
+
+        <form className="mt-5 space-y-4" onSubmit={submit}>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-espresso">Warehouse</label>
+            <select
+              value={warehouseCode}
+              onChange={(e) => setWarehouseCode(e.target.value)}
+              className="w-full rounded-lg border border-sand px-3 py-2 text-sm"
+            >
+              {warehouses.map((warehouse) => (
+                <option key={warehouse.code} value={warehouse.code}>{warehouse.displayName}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-espresso">Quantity</label>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="w-full rounded-lg border border-sand px-3 py-2 text-sm"
+              placeholder="Enter quantity"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-espresso">Note</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="w-full rounded-lg border border-sand px-3 py-2 text-sm"
+              rows={3}
+              placeholder="Optional note"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={saving} className="bg-primary text-white hover:bg-primary-hover">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Stock'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const AdminInventory = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [adjusting, setAdjusting] = useState(null);
-  const [adjustments, setAdjustments] = useState({});
-  const [adjustNotes, setAdjustNotes] = useState({});
+  const [warehouses, setWarehouses] = useState([]);
+  const [savingStockIn, setSavingStockIn] = useState(false);
+  const [modalItem, setModalItem] = useState(null);
+
   const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState('productName');
@@ -18,13 +98,18 @@ const AdminInventory = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchItems();
+    fetchData();
   }, []);
 
-  const fetchItems = async () => {
+  const fetchData = async () => {
     try {
-      const data = await inventoryService.getAll();
-      setItems(data);
+      setLoading(true);
+      const [inventory, warehouseOptions] = await Promise.all([
+        inventoryService.getAll(),
+        inventoryService.getWarehouses(),
+      ]);
+      setItems(inventory);
+      setWarehouses(warehouseOptions || []);
     } catch (err) {
       console.error('Failed to load inventory:', err);
     } finally {
@@ -32,65 +117,61 @@ const AdminInventory = () => {
     }
   };
 
-  const handleAdjust = async (itemId, amount) => {
-    if (amount === 0) return;
-    setAdjusting(itemId);
+  const handleStockIn = async ({ warehouseCode, quantity, note }) => {
+    if (!modalItem) return;
+    setSavingStockIn(true);
     try {
-      const updated = await inventoryService.adjustStock(itemId, amount, adjustNotes[itemId] || '');
-      setItems((prev) =>
-        prev.map((item) => (item.id === itemId ? { ...item, currentStock: updated.currentStock, status: updated.status, lastUpdated: updated.lastUpdated } : item))
+      const updated = await inventoryService.stockInByWarehouse(
+        modalItem.productId,
+        warehouseCode,
+        quantity,
+        note || ''
       );
-      setAdjustments((prev) => ({ ...prev, [itemId]: '' }));
-      setAdjustNotes((prev) => ({ ...prev, [itemId]: '' }));
+      setItems((prev) => prev.map((item) => (item.id === modalItem.id ? { ...item, ...updated } : item)));
+      setModalItem(null);
     } catch (err) {
-      console.error('Failed to adjust stock:', err);
-      alert(err.response?.data?.message || 'Failed to adjust stock.');
+      console.error('Failed to add stock:', err);
+      alert(err.response?.data?.message || 'Failed to add stock.');
     } finally {
-      setAdjusting(null);
+      setSavingStockIn(false);
     }
-  };
-
-  const getAdjustmentValue = (id) => {
-    const val = adjustments[id];
-    return val !== undefined && val !== '' ? parseInt(val, 10) : 0;
   };
 
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
       setSortDir('asc');
     }
   };
 
-  // Filter
-  let filtered = items.filter((item) => {
-    if (filter === 'LOW') return item.status === 'LOW_STOCK';
-    if (filter === 'OUT') return item.status === 'OUT_OF_STOCK';
-    return true;
-  });
+  const filtered = useMemo(() => {
+    let data = items.filter((item) => {
+      if (filter === 'LOW') return item.status === 'LOW_STOCK';
+      if (filter === 'OUT') return item.status === 'OUT_OF_STOCK';
+      return true;
+    });
 
-  // Search
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.productName.toLowerCase().includes(q) ||
-        item.sku.toLowerCase().includes(q)
-    );
-  }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      data = data.filter((item) =>
+        item.productName.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
+      );
+    }
 
-  // Sort
-  filtered.sort((a, b) => {
-    let aVal = a[sortField];
-    let bVal = b[sortField];
-    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
+    data = [...data].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [items, filter, search, sortField, sortDir]);
 
   if (loading) {
     return (
@@ -121,7 +202,7 @@ const AdminInventory = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl font-bold text-espresso">Inventory Management</h1>
-            <p className="mt-1 text-muted-foreground">Track and adjust stock levels for all products</p>
+            <p className="mt-1 text-muted-foreground">Stock in by warehouse and monitor critical levels</p>
           </div>
           <Button
             onClick={() => navigate('/admin/inventory/movements')}
@@ -132,7 +213,6 @@ const AdminInventory = () => {
           </Button>
         </div>
 
-        {/* Summary Cards */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-sand bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -163,7 +243,6 @@ const AdminInventory = () => {
           </div>
         </div>
 
-        {/* Filter Tabs + Search */}
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <div className="flex flex-wrap gap-2">
             {[
@@ -175,9 +254,7 @@ const AdminInventory = () => {
                 key={key}
                 onClick={() => setFilter(key)}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                  filter === key
-                    ? 'bg-primary text-white'
-                    : 'bg-cream text-muted-foreground hover:bg-sand'
+                  filter === key ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'
                 }`}
               >
                 {label}
@@ -191,12 +268,11 @@ const AdminInventory = () => {
               placeholder="Search by name or SKU..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-64 rounded-lg border border-sand bg-white py-2 pl-9 pr-3 text-sm text-espresso placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-64 rounded-lg border border-sand bg-white py-2 pl-9 pr-3 text-sm text-espresso"
             />
           </div>
         </div>
 
-        {/* Inventory Table */}
         <div className="mt-6 overflow-x-auto rounded-xl border border-sand bg-white shadow-sm">
           <table className="w-full">
             <thead className="border-b border-sand bg-cream/40">
@@ -207,37 +283,25 @@ const AdminInventory = () => {
                 <SortHeader field="reorderLevel" label="Reorder Level" />
                 <SortHeader field="status" label="Status" />
                 <SortHeader field="lastUpdated" label="Last Updated" />
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Actions
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-sand/50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                    No inventory items found.
-                  </td>
+                  <td colSpan={7} className="py-12 text-center text-muted-foreground">No inventory items found.</td>
                 </tr>
               ) : (
                 filtered.map((item) => (
                   <tr
                     key={item.id}
-                    className="hover:bg-cream/30 transition-colors cursor-pointer"
+                    className="cursor-pointer transition-colors hover:bg-cream/30"
                     onClick={() => navigate(`/admin/inventory/movements?productId=${item.productId}`)}
                   >
                     <td className="px-4 py-3 font-medium text-espresso">{item.productName}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{item.sku}</td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`text-lg font-bold ${
-                          item.currentStock === 0
-                            ? 'text-red-500'
-                            : item.status === 'LOW_STOCK'
-                              ? 'text-amber-500'
-                              : 'text-espresso'
-                        }`}
-                      >
+                      <span className={`text-lg font-bold ${item.currentStock === 0 ? 'text-red-500' : item.status === 'LOW_STOCK' ? 'text-amber-500' : 'text-espresso'}`}>
                         {item.currentStock}
                       </span>
                     </td>
@@ -249,38 +313,18 @@ const AdminInventory = () => {
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {item.lastUpdated
-                        ? new Date(item.lastUpdated).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
+                        ? new Date(item.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                         : '—'}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={adjustments[item.id] || ''}
-                          onChange={(e) =>
-                            setAdjustments((prev) => ({ ...prev, [item.id]: e.target.value }))
-                          }
-                          placeholder="±"
-                          className="w-20 rounded-lg border border-sand bg-white px-2 py-1.5 text-center text-sm text-espresso placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleAdjust(item.id, getAdjustmentValue(item.id))}
-                          disabled={adjusting === item.id || getAdjustmentValue(item.id) === 0}
-                          className="rounded-full bg-primary text-white hover:bg-primary-hover disabled:opacity-50"
-                        >
-                          {adjusting === item.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            'Apply'
-                          )}
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        className="rounded-full bg-primary text-white hover:bg-primary-hover"
+                        onClick={() => setModalItem(item)}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Add Stock
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -289,6 +333,15 @@ const AdminInventory = () => {
           </table>
         </div>
       </div>
+
+      <StockInModal
+        open={!!modalItem}
+        item={modalItem}
+        warehouses={warehouses}
+        onClose={() => setModalItem(null)}
+        onSubmit={handleStockIn}
+        saving={savingStockIn}
+      />
     </div>
   );
 };
