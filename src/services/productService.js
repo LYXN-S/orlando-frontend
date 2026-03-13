@@ -36,6 +36,11 @@ const productService = {
     return response.data;
   },
 
+  updateAvailability: async (id, availabilityStatus, note = '') => {
+    const response = await api.patch(`${API_BASE}/${id}/availability`, { availabilityStatus, note });
+    return response.data;
+  },
+
   uploadImage: async (productId, file) => {
     const formData = new FormData();
     formData.append('file', file);
