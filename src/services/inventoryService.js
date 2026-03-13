@@ -44,6 +44,11 @@ const inventoryService = {
     return response.data;
   },
 
+  updateProductDetails: async (inventoryItemId, payload) => {
+    const response = await api.patch(`${API_BASE}/${inventoryItemId}/product`, payload);
+    return response.data;
+  },
+
   getMovements: async (params = {}) => {
     const response = await api.get(`${API_BASE}/movements`, { params });
     const data = response.data;
