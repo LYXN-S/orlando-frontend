@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import productService from '../../services/productService';
 import { Loader2, Upload, X, ArrowLeft } from 'lucide-react';
 
-const EMPTY_FORM = { name: '', description: '', sku: '', price: '', stockQuantity: '', category: '' };
+const EMPTY_FORM = { name: '', description: '', sku: '', price: '', stockQuantity: '', category: '', availabilityStatus: 'AVAILABLE' };
 
 const AdminProductForm = () => {
   const { id } = useParams();
@@ -33,6 +33,7 @@ const AdminProductForm = () => {
           price: product.price?.toString() || '',
           stockQuantity: product.stockQuantity?.toString() || '',
           category: product.category || '',
+          availabilityStatus: product.availabilityStatus || 'AVAILABLE',
         });
         setImages(product.images || []);
       } catch (err) {
@@ -102,14 +103,15 @@ const AdminProductForm = () => {
         description: form.description.trim(),
         sku: form.sku.trim(),
         price: Number(form.price),
-        stockQuantity: Number(form.stockQuantity),
         category: form.category.trim(),
+        availabilityStatus: form.availabilityStatus,
       };
 
       let productId = id;
       if (isEdit) {
         await productService.update(id, payload);
       } else {
+        payload.stockQuantity = Number(form.stockQuantity);
         const created = await productService.create(payload);
         productId = created.id;
       }
@@ -227,8 +229,22 @@ const AdminProductForm = () => {
                   onChange={handleChange}
                   className={`w-full rounded-lg border ${errors.stockQuantity ? 'border-destructive' : 'border-sand'} bg-white px-4 py-2.5 text-sm text-espresso placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary`}
                   placeholder="0"
+                  disabled={isEdit}
                 />
+                {isEdit && <p className="mt-1 text-xs text-muted-foreground">Stock is managed by Inventory after creation.</p>}
                 {errors.stockQuantity && <p className="mt-1 text-xs text-destructive">{errors.stockQuantity}</p>}
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-espresso">Availability</label>
+                <select
+                  name="availabilityStatus"
+                  value={form.availabilityStatus}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-sand bg-white px-4 py-2.5 text-sm text-espresso"
+                >
+                  <option value="AVAILABLE">AVAILABLE</option>
+                  <option value="UNAVAILABLE">UNAVAILABLE</option>
+                </select>
               </div>
             </div>
           </div>
