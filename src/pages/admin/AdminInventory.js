@@ -84,12 +84,58 @@ const StockInModal = ({ open, onClose, warehouses, item, onSubmit, saving }) => 
   );
 };
 
+const ProductEditModal = ({ open, item, onClose, onSubmit, saving }) => {
+  const [form, setForm] = useState({ productName: '', sku: '', category: '', reorderLevel: 5 });
+
+  useEffect(() => {
+    if (!open || !item) return;
+    setForm({
+      productName: item.productName || '',
+      sku: item.sku || '',
+      category: item.category || '',
+      reorderLevel: item.reorderLevel || 5,
+    });
+  }, [open, item]);
+
+  if (!open || !item) return null;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    await onSubmit(form);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-sand bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-serif text-2xl font-semibold text-espresso">Edit Product From Inventory</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Operational metadata updates</p>
+
+        <form className="mt-5 space-y-4" onSubmit={submit}>
+          <input value={form.productName} onChange={(e) => setForm((prev) => ({ ...prev, productName: e.target.value }))} className="w-full rounded-lg border border-sand px-3 py-2 text-sm" placeholder="Product name" />
+          <input value={form.sku} onChange={(e) => setForm((prev) => ({ ...prev, sku: e.target.value }))} className="w-full rounded-lg border border-sand px-3 py-2 text-sm" placeholder="SKU" />
+          <input value={form.category} onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))} className="w-full rounded-lg border border-sand px-3 py-2 text-sm" placeholder="Category" />
+          <input type="number" min="0" value={form.reorderLevel} onChange={(e) => setForm((prev) => ({ ...prev, reorderLevel: Number(e.target.value) }))} className="w-full rounded-lg border border-sand px-3 py-2 text-sm" placeholder="Reorder Level" />
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={saving} className="bg-primary text-white hover:bg-primary-hover">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Product'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const AdminInventory = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [warehouses, setWarehouses] = useState([]);
   const [savingStockIn, setSavingStockIn] = useState(false);
   const [modalItem, setModalItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
@@ -134,6 +180,21 @@ const AdminInventory = () => {
       alert(err.response?.data?.message || 'Failed to add stock.');
     } finally {
       setSavingStockIn(false);
+    }
+  };
+
+  const handleEditProduct = async (payload) => {
+    if (!editItem) return;
+    setSavingEdit(true);
+    try {
+      const updated = await inventoryService.updateProductDetails(editItem.id, payload);
+      setItems((prev) => prev.map((item) => (item.id === editItem.id ? { ...item, ...updated } : item)));
+      setEditItem(null);
+    } catch (err) {
+      console.error('Failed to update product details from inventory:', err);
+      alert(err.response?.data?.message || 'Failed to update product details');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -279,6 +340,7 @@ const AdminInventory = () => {
               <tr>
                 <SortHeader field="productName" label="Product Name" />
                 <SortHeader field="sku" label="SKU" />
+                <SortHeader field="category" label="Category" />
                 <SortHeader field="currentStock" label="Current Stock" />
                 <SortHeader field="reorderLevel" label="Reorder Level" />
                 <SortHeader field="status" label="Status" />
@@ -289,7 +351,7 @@ const AdminInventory = () => {
             <tbody className="divide-y divide-sand/50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground">No inventory items found.</td>
+                  <td colSpan={8} className="py-12 text-center text-muted-foreground">No inventory items found.</td>
                 </tr>
               ) : (
                 filtered.map((item) => (
@@ -300,6 +362,7 @@ const AdminInventory = () => {
                   >
                     <td className="px-4 py-3 font-medium text-espresso">{item.productName}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{item.sku}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{item.category || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`text-lg font-bold ${item.currentStock === 0 ? 'text-red-500' : item.status === 'LOW_STOCK' ? 'text-amber-500' : 'text-espresso'}`}>
                         {item.currentStock}
@@ -325,6 +388,14 @@ const AdminInventory = () => {
                         <Plus className="mr-1 h-3.5 w-3.5" />
                         Add Stock
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-2 rounded-full"
+                        onClick={() => setEditItem(item)}
+                      >
+                        Edit Product
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -341,6 +412,14 @@ const AdminInventory = () => {
         onClose={() => setModalItem(null)}
         onSubmit={handleStockIn}
         saving={savingStockIn}
+      />
+
+      <ProductEditModal
+        open={!!editItem}
+        item={editItem}
+        onClose={() => setEditItem(null)}
+        onSubmit={handleEditProduct}
+        saving={savingEdit}
       />
     </div>
   );
