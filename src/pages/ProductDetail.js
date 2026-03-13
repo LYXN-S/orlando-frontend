@@ -130,41 +130,33 @@ const ProductDetail = () => {
             <p className="mt-2 text-sm text-muted-foreground">SKU: {product.sku}</p>
             <p className="mt-4 text-3xl font-semibold text-espresso">${Number(product.price).toFixed(2)}</p>
 
-            {product.stockQuantity <= 0 ? (
-              <Badge variant="destructive" className="mt-4 w-fit text-sm">Out of Stock</Badge>
-            ) : (
-              <>
-                <p className="mt-2 text-sm text-accent">{product.stockQuantity} in stock</p>
+            {/* Quantity Selector */}
+            <div className="mt-8">
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">Quantity</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => handleQuantity(-1)} disabled={quantity <= 1}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-sand bg-white text-espresso transition-colors hover:bg-cream disabled:opacity-40">
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-12 text-center text-lg font-semibold text-espresso">{quantity}</span>
+                <button onClick={() => handleQuantity(1)}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-sand bg-white text-espresso transition-colors hover:bg-cream">
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-                {/* Quantity Selector */}
-                <div className="mt-8">
-                  <label className="mb-2 block text-sm font-medium text-muted-foreground">Quantity</label>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => handleQuantity(-1)} disabled={quantity <= 1}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-sand bg-white text-espresso transition-colors hover:bg-cream disabled:opacity-40">
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <span className="w-12 text-center text-lg font-semibold text-espresso">{quantity}</span>
-                    <button onClick={() => handleQuantity(1)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-sand bg-white text-espresso transition-colors hover:bg-cream">
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Add to Cart */}
-                <Button onClick={handleAdd} size="lg"
-                  className={`mt-8 w-full rounded-full font-semibold shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:w-auto sm:px-12 ${
-                    added ? 'bg-success text-white shadow-success/30 hover:bg-success' : 'bg-primary text-white shadow-primary/30 hover:bg-primary-hover'
-                  }`}>
-                  {added ? (
-                    <span className="flex items-center gap-2"><Check className="h-5 w-5" /> Added to Cart</span>
-                  ) : (
-                    <span className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" /> Add to Cart</span>
-                  )}
-                </Button>
-              </>
-            )}
+            {/* Add to Cart */}
+            <Button onClick={handleAdd} size="lg"
+              className={`mt-8 w-full rounded-full font-semibold shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:w-auto sm:px-12 ${
+                added ? 'bg-success text-white shadow-success/30 hover:bg-success' : 'bg-primary text-white shadow-primary/30 hover:bg-primary-hover'
+              }`}>
+              {added ? (
+                <span className="flex items-center gap-2"><Check className="h-5 w-5" /> Added to Cart</span>
+              ) : (
+                <span className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" /> Add to Cart</span>
+              )}
+            </Button>
 
             {/* Description */}
             <div className="mt-10 border-t border-sand pt-8">
