@@ -1,65 +1,181 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import orderService from '../../services/orderService';
-import { Loader2, CheckCircle, XCircle, Clock, Building2, User, AlertTriangle, PackageCheck } from 'lucide-react';
-
-const statusIcon = {
-  PENDING_EVALUATION: <Clock className="h-4 w-4 text-amber-500" />,
-  APPROVED: <CheckCircle className="h-4 w-4 text-green-600" />,
-  REJECTED: <XCircle className="h-4 w-4 text-red-500" />,
-};
+import inventoryService from '../../services/inventoryService';
+import { Loader2, CheckCircle, XCircle, Clock, FileCheck2 } from 'lucide-react';
 
 const statusColors = {
-  PENDING_EVALUATION: 'muted',
+  PENDING_REVIEW: 'muted',
   APPROVED: 'success',
   REJECTED: 'destructive',
 };
 
+const statusIcon = {
+  PENDING_REVIEW: <Clock className="h-4 w-4 text-amber-500" />,
+  APPROVED: <CheckCircle className="h-4 w-4 text-green-600" />,
+  REJECTED: <XCircle className="h-4 w-4 text-red-500" />,
+};
+
+const emptyAllocation = (item, defaultWarehouse = 'OFFICE') => ({
+  orderItemId: item.orderItemId ?? null,
+  productId: item.productId,
+  warehouseCode: defaultWarehouse,
+  allocatedQuantity: item.quantity,
+});
+
 const AdminOrders = () => {
-  const [orders, setOrders] = useState([]);
+  const [poReviews, setPoReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [evaluating, setEvaluating] = useState(null);
-  const [noteInputs, setNoteInputs] = useState({});
   const [filter, setFilter] = useState('ALL');
+  const [activePoId, setActivePoId] = useState(null);
+  const [activePo, setActivePo] = useState(null);
+  const [warehouses, setWarehouses] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [note, setNote] = useState('');
+  const [savingAllocations, setSavingAllocations] = useState(false);
+  const [deciding, setDeciding] = useState(false);
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    loadPoReviews();
+    loadWarehouses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
 
-  const fetchOrders = async () => {
+  useEffect(() => {
+    if (activePoId) {
+      loadPoDetail(activePoId);
+    }
+  }, [activePoId]);
+
+  const loadPoReviews = async () => {
     try {
-      const data = await orderService.getPendingOrders();
-      setOrders(data);
+      setLoading(true);
+      const data = await orderService.getPOReviews(filter);
+      setPoReviews(data);
+      if (data.length && !activePoId) {
+        setActivePoId(data[0].id);
+      }
+      if (!data.length) {
+        setActivePoId(null);
+        setActivePo(null);
+      }
     } catch (err) {
-      console.error('Failed to load orders:', err);
+      console.error('Failed to load PO reviews:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEvaluate = async (orderId, approved) => {
-    setEvaluating(orderId);
+  const loadWarehouses = async () => {
     try {
-      await orderService.evaluateOrder(orderId, approved, noteInputs[orderId] || '');
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId
-            ? { ...o, status: approved ? 'APPROVED' : 'REJECTED', evaluationNote: noteInputs[orderId] || '' }
-            : o
-        )
-      );
+      const data = await inventoryService.getWarehouses();
+      setWarehouses(data || []);
     } catch (err) {
-      console.error('Failed to evaluate order:', err);
-      alert('Failed to evaluate order.');
-    } finally {
-      setEvaluating(null);
+      console.error('Failed to load warehouses:', err);
     }
   };
 
-  const filteredOrders = filter === 'ALL'
-    ? orders
-    : orders.filter((o) => o.status === filter);
+  const loadPoDetail = async (poId) => {
+    try {
+      const detail = await orderService.getPOReviewById(poId);
+      setActivePo(detail);
+      setNote(detail.reviewNote || '');
+
+      const existing = detail.allocations || [];
+      if (existing.length) {
+        setAllocations(existing.map((a) => ({
+          orderItemId: a.orderItemId,
+          productId: a.productId,
+          warehouseCode: a.warehouseCode,
+          allocatedQuantity: a.allocatedQuantity,
+        })));
+      } else {
+        setAllocations((detail.items || []).map((item) => ({
+          orderItemId: item.orderItemId,
+          productId: item.productId,
+          warehouseCode: 'OFFICE',
+          allocatedQuantity: item.quantity,
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to load PO detail:', err);
+    }
+  };
+
+  const allocatedByItem = useMemo(() => {
+    const map = new Map();
+    allocations.forEach((line) => {
+      const key = line.orderItemId || line.productId;
+      map.set(key, (map.get(key) || 0) + Number(line.allocatedQuantity || 0));
+    });
+    return map;
+  }, [allocations]);
+
+  const allocationValid = useMemo(() => {
+    if (!activePo) return false;
+    return (activePo.items || []).every((item) => {
+      const key = item.orderItemId;
+      const allocated = allocatedByItem.get(key) || 0;
+      return allocated === item.quantity;
+    });
+  }, [activePo, allocatedByItem]);
+
+  const setAllocationField = (index, field, value) => {
+    setAllocations((prev) => prev.map((line, idx) => (idx === index ? { ...line, [field]: value } : line)));
+  };
+
+  const addAllocationLine = (item) => {
+    setAllocations((prev) => [...prev, emptyAllocation({
+      orderItemId: item.orderItemId || item.productId,
+      productId: item.productId,
+      quantity: 1,
+    })]);
+  };
+
+  const removeAllocationLine = (index) => {
+    setAllocations((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const saveAllocations = async () => {
+    if (!activePo) return;
+    setSavingAllocations(true);
+    try {
+      const payload = allocations.map((line) => ({
+        orderItemId: line.orderItemId,
+        productId: line.productId,
+        warehouseCode: line.warehouseCode,
+        allocatedQuantity: Number(line.allocatedQuantity),
+      }));
+      await orderService.savePOAllocations(activePo.id, payload);
+      await loadPoDetail(activePo.id);
+    } catch (err) {
+      console.error('Failed to save allocations:', err);
+      alert(err.response?.data?.message || 'Failed to save allocations');
+    } finally {
+      setSavingAllocations(false);
+    }
+  };
+
+  const decide = async (approved) => {
+    if (!activePo) return;
+    if (approved && !allocationValid) {
+      alert('Allocation must match required quantity per item before approval.');
+      return;
+    }
+
+    setDeciding(true);
+    try {
+      await orderService.decidePO(activePo.id, approved, note);
+      await loadPoReviews();
+      await loadPoDetail(activePo.id);
+    } catch (err) {
+      console.error('Failed to submit decision:', err);
+      alert(err.response?.data?.message || 'Failed to submit decision');
+    } finally {
+      setDeciding(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -71,180 +187,136 @@ const AdminOrders = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-        <h1 className="font-serif text-3xl font-bold text-espresso">Order Management</h1>
-        <p className="mt-1 text-muted-foreground">Review, approve, or reject customer orders</p>
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-8 md:px-8 md:py-12 lg:grid-cols-5">
+        <section className="rounded-xl border border-sand bg-white p-4 shadow-sm lg:col-span-2">
+          <h1 className="font-serif text-2xl font-bold text-espresso">PO Reviews</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Scrutinize customer orders before approval</p>
 
-        {/* Filter Tabs */}
-        <div className="mt-6 flex flex-wrap gap-2">
-          {['ALL', 'PENDING_EVALUATION', 'APPROVED', 'REJECTED'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                filter === s
-                  ? 'bg-primary text-white'
-                  : 'bg-cream text-muted-foreground hover:bg-sand'
-              }`}
-            >
-              {s === 'ALL' ? 'All' : s.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${filter === status ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
+              >
+                {status.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
 
-        {/* Order List */}
-        <div className="mt-6 space-y-4">
-          {filteredOrders.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              No orders in this category.
-            </div>
+          <div className="mt-4 space-y-2">
+            {poReviews.length === 0 && <p className="text-sm text-muted-foreground">No PO reviews found.</p>}
+            {poReviews.map((po) => (
+              <button
+                key={po.id}
+                onClick={() => setActivePoId(po.id)}
+                className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${activePoId === po.id ? 'border-primary bg-primary/5' : 'border-sand hover:bg-cream/40'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-espresso">PO #{po.id}</span>
+                  <Badge variant={statusColors[po.status] || 'muted'}>{po.status.replace('_', ' ')}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Order #{po.orderId} · Customer {po.customerId}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-sand bg-white p-5 shadow-sm lg:col-span-3">
+          {!activePo ? (
+            <p className="text-sm text-muted-foreground">Select a PO review to start evaluation.</p>
           ) : (
-            filteredOrders.map((order) => (
-              <div key={order.id} className="rounded-xl border border-sand bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {statusIcon[order.status]}
-                      <h3 className="font-serif text-lg font-semibold text-espresso">Order #{order.id}</h3>
-                      <Badge variant={statusColors[order.status] || 'muted'}>
-                        {order.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Customer ID: {order.customerId} · {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <p className="text-lg font-bold text-espresso">${Number(order.totalAmount).toFixed(2)}</p>
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {statusIcon[activePo.status] || <FileCheck2 className="h-4 w-4" />}
+                  <h2 className="font-serif text-xl font-semibold text-espresso">PO #{activePo.id}</h2>
+                  <Badge variant={statusColors[activePo.status] || 'muted'}>{activePo.status.replace('_', ' ')}</Badge>
                 </div>
-
-                {/* Items with inventory comparison */}
-                <div className="mt-4">
-                  <div className="mb-2 grid grid-cols-12 gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <span className="col-span-4">Product</span>
-                    <span className="col-span-2 text-center">Ordered</span>
-                    <span className="col-span-2 text-center">In Stock</span>
-                    <span className="col-span-2 text-center">Status</span>
-                    <span className="col-span-2 text-right">Subtotal</span>
-                  </div>
-                  {order.items && order.items.map((item, idx) => {
-                    const hasStock = item.availableStock != null;
-                    const sufficient = hasStock && item.availableStock >= item.quantity;
-                    const low = hasStock && !sufficient;
-                    return (
-                      <div key={idx} className={`grid grid-cols-12 items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${low ? 'bg-red-50' : ''}`}>
-                        <span className="col-span-4 text-muted-foreground">{item.productName}</span>
-                        <span className="col-span-2 text-center font-medium text-espresso">{item.quantity}</span>
-                        <span className={`col-span-2 text-center font-medium ${low ? 'text-red-600' : 'text-espresso'}`}>
-                          {hasStock ? item.availableStock : '—'}
-                        </span>
-                        <span className="col-span-2 flex justify-center">
-                          {hasStock ? (
-                            sufficient ? (
-                              <span className="flex items-center gap-1 text-xs font-medium text-green-600">
-                                <PackageCheck className="h-3.5 w-3.5" /> Sufficient
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-xs font-medium text-red-600">
-                                <AlertTriangle className="h-3.5 w-3.5" /> Insufficient
-                              </span>
-                            )
-                          ) : (
-                            <span className="text-xs text-muted-foreground">N/A</span>
-                          )}
-                        </span>
-                        <span className="col-span-2 text-right font-medium text-espresso">${Number(item.subtotal).toFixed(2)}</span>
-                      </div>
-                    );
-                  })}
-                  {/* Overall stock warning */}
-                  {order.status === 'PENDING_EVALUATION' && order.items?.some(item => item.availableStock != null && item.availableStock < item.quantity) && (
-                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 border border-red-200">
-                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                      <span className="font-medium">Warning: Some items have insufficient stock to fulfill this order.</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Billing Details (PO Info) */}
-                {order.billingType && (
-                  <div className="mt-4 rounded-lg bg-cream/60 p-4 border border-sand/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      {order.billingType === 'COMPANY' ? (
-                        <Building2 className="h-4 w-4 text-primary" />
-                      ) : (
-                        <User className="h-4 w-4 text-primary" />
-                      )}
-                      <span className="text-sm font-semibold text-espresso">
-                        {order.billingType === 'COMPANY' ? 'Company' : 'Personal'} Billing
-                      </span>
-                    </div>
-                    <div className="grid gap-1.5 text-sm">
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[100px]">
-                          {order.billingType === 'COMPANY' ? 'Registered Name:' : 'Name:'}
-                        </span>
-                        <span className="font-medium text-espresso">{order.billingName}</span>
-                      </div>
-                      {order.billingType === 'COMPANY' && order.billingTin && (
-                        <div className="flex gap-2">
-                          <span className="text-muted-foreground min-w-[100px]">TIN:</span>
-                          <span className="font-medium text-espresso">{order.billingTin}</span>
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[100px]">
-                          {order.billingType === 'COMPANY' ? 'Business Addr:' : 'Billing Addr:'}
-                        </span>
-                        <span className="font-medium text-espresso">{order.billingAddress}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[100px]">Terms:</span>
-                        <span className="font-medium text-espresso">{order.billingTerms}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Evaluate Controls (only for pending) */}
-                {order.status === 'PENDING_EVALUATION' && (
-                  <div className="mt-4 border-t border-sand pt-4">
-                    <label className="mb-1.5 block text-sm font-medium text-espresso">Evaluation Note (optional)</label>
-                    <input
-                      type="text"
-                      value={noteInputs[order.id] || ''}
-                      onChange={(e) => setNoteInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
-                      placeholder="Add a note for the customer…"
-                      className="w-full rounded-lg border border-sand bg-white px-4 py-2 text-sm text-espresso placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <div className="mt-3 flex gap-2">
-                      <Button
-                        onClick={() => handleEvaluate(order.id, true)}
-                        disabled={evaluating === order.id}
-                        className="gap-1.5 rounded-full bg-green-600 text-white hover:bg-green-700"
-                      >
-                        {evaluating === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => handleEvaluate(order.id, false)}
-                        disabled={evaluating === order.id}
-                        variant="destructive"
-                        className="gap-1.5 rounded-full"
-                      >
-                        {evaluating === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {order.evaluationNote && order.status !== 'PENDING_EVALUATION' && (
-                  <p className="mt-3 text-sm italic text-muted-foreground">Note: {order.evaluationNote}</p>
-                )}
+                <p className="text-sm text-muted-foreground">Order #{activePo.orderId}</p>
               </div>
-            ))
+
+              <div className="mt-5 space-y-3">
+                {(activePo.items || []).map((item) => {
+                  const key = item.orderItemId;
+                  const allocated = allocatedByItem.get(key) || 0;
+                  const valid = allocated === item.quantity;
+                  return (
+                    <div key={`${item.productId}-${key}`} className="rounded-lg border border-sand p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-espresso">{item.productName}</p>
+                        <span className={`text-xs font-medium ${valid ? 'text-green-700' : 'text-red-600'}`}>
+                          Required {item.quantity} · Allocated {allocated}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {allocations
+                          .map((line, idx) => ({ ...line, idx }))
+                          .filter((line) => (line.orderItemId || line.productId) === key)
+                          .map((line) => (
+                            <div key={line.idx} className="grid grid-cols-12 gap-2">
+                              <select
+                                value={line.warehouseCode}
+                                onChange={(e) => setAllocationField(line.idx, 'warehouseCode', e.target.value)}
+                                className="col-span-5 rounded-lg border border-sand px-2 py-1.5 text-sm"
+                                disabled={activePo.status !== 'PENDING_REVIEW'}
+                              >
+                                {warehouses.map((w) => <option key={w.code} value={w.code}>{w.displayName}</option>)}
+                              </select>
+                              <input
+                                type="number"
+                                min="1"
+                                value={line.allocatedQuantity}
+                                onChange={(e) => setAllocationField(line.idx, 'allocatedQuantity', e.target.value)}
+                                className="col-span-4 rounded-lg border border-sand px-2 py-1.5 text-sm"
+                                disabled={activePo.status !== 'PENDING_REVIEW'}
+                              />
+                              {activePo.status === 'PENDING_REVIEW' && (
+                                <Button type="button" variant="outline" className="col-span-3" onClick={() => removeAllocationLine(line.idx)}>
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+
+                      {activePo.status === 'PENDING_REVIEW' && (
+                        <Button className="mt-2" size="sm" variant="outline" onClick={() => addAllocationLine(item)}>
+                          Add Warehouse Split
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5">
+                <label className="mb-1 block text-sm font-medium text-espresso">Review Note</label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-sand px-3 py-2 text-sm"
+                  disabled={activePo.status !== 'PENDING_REVIEW'}
+                />
+              </div>
+
+              {activePo.status === 'PENDING_REVIEW' && (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button onClick={saveAllocations} variant="outline" disabled={savingAllocations || deciding}>
+                    {savingAllocations ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Allocations'}
+                  </Button>
+                  <Button onClick={() => decide(true)} disabled={!allocationValid || deciding} className="bg-green-600 text-white hover:bg-green-700">
+                    {deciding ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve PO'}
+                  </Button>
+                  <Button onClick={() => decide(false)} disabled={deciding} variant="destructive">
+                    {deciding ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject PO'}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
