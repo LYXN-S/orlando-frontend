@@ -10,6 +10,8 @@ const AdminProducts = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState(null);
+  const [availabilityFilter, setAvailabilityFilter] = useState('ALL');
+  const [toggling, setToggling] = useState(null);
 
   useEffect(() => {
     fetchProducts();
@@ -40,12 +42,28 @@ const AdminProducts = () => {
     }
   };
 
-  const filtered = products.filter(
-    (p) =>
+  const filtered = products.filter((p) => {
+    const availabilityMatch = availabilityFilter === 'ALL' || p.availabilityStatus === availabilityFilter;
+    const searchMatch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sku.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase())
-  );
+      p.category.toLowerCase().includes(search.toLowerCase());
+    return availabilityMatch && searchMatch;
+  });
+
+  const handleToggleAvailability = async (product) => {
+    const next = product.availabilityStatus === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE';
+    setToggling(product.id);
+    try {
+      const updated = await productService.updateAvailability(product.id, next);
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, ...updated } : p)));
+    } catch (err) {
+      console.error('Failed to update availability:', err);
+      alert(err.response?.data?.message || 'Failed to update availability');
+    } finally {
+      setToggling(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -80,6 +98,18 @@ const AdminProducts = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-sand bg-white py-2.5 pl-10 pr-4 text-sm text-espresso placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          {['ALL', 'AVAILABLE', 'UNAVAILABLE'].map((state) => (
+            <button
+              key={state}
+              onClick={() => setAvailabilityFilter(state)}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${availabilityFilter === state ? 'bg-primary text-white' : 'bg-cream text-muted-foreground hover:bg-sand'}`}
+            >
+              {state}
+            </button>
+          ))}
         </div>
 
         {/* Product List */}
@@ -118,6 +148,10 @@ const AdminProducts = () => {
                   </p>
                 </div>
 
+                <Badge variant={product.availabilityStatus === 'AVAILABLE' ? 'success' : 'muted'} className="shrink-0">
+                  {product.availabilityStatus || 'AVAILABLE'}
+                </Badge>
+
                 {/* Stock Indicator */}
                 {product.stockQuantity <= 5 && (
                   <Badge variant="destructive" className="shrink-0">
@@ -132,6 +166,15 @@ const AdminProducts = () => {
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </Link>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2 text-xs text-muted-foreground hover:text-primary"
+                    onClick={() => handleToggleAvailability(product)}
+                    disabled={toggling === product.id}
+                  >
+                    {toggling === product.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (product.availabilityStatus === 'AVAILABLE' ? 'Disable' : 'Enable')}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
