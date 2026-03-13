@@ -50,17 +50,13 @@ const ProductCard = ({ product }) => {
           <h3 className="font-serif text-lg font-semibold text-espresso transition-colors hover:text-primary">{product.name}</h3>
         </Link>
         <p className="mt-1 text-lg font-semibold text-espresso">${Number(product.price).toFixed(2)}</p>
-        {product.stockQuantity <= 0 ? (
-          <Badge variant="destructive" className="mt-3">Out of Stock</Badge>
-        ) : (
-          <Button onClick={handleAdd} variant="outline" className={`mt-3 w-full border-primary text-primary transition-all hover:bg-primary hover:text-white ${added ? 'bg-success border-success text-white hover:bg-success' : ''}`} size="sm">
-            {added ? (
-              <span className="flex items-center gap-1.5"><Check className="h-4 w-4" /> Added</span>
-            ) : (
-              <span className="flex items-center gap-1.5"><ShoppingCart className="h-4 w-4" /> Add to Cart</span>
-            )}
-          </Button>
-        )}
+        <Button onClick={handleAdd} variant="outline" className={`mt-3 w-full border-primary text-primary transition-all hover:bg-primary hover:text-white ${added ? 'bg-success border-success text-white hover:bg-success' : ''}`} size="sm">
+          {added ? (
+            <span className="flex items-center gap-1.5"><Check className="h-4 w-4" /> Added</span>
+          ) : (
+            <span className="flex items-center gap-1.5"><ShoppingCart className="h-4 w-4" /> Add to Cart</span>
+          )}
+        </Button>
       </div>
     </div>
   );
